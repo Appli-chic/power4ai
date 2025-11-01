@@ -51,10 +51,9 @@ def calculate_target_q_value(transition, winner, next_q_values, gamma):
 def train_on_transition(model, target_model, optimizer, loss_fn, transition, winner, device, gamma):
     state_tensor = board_to_tensor(transition.state, transition.player, device)
     current_q_values = model(state_tensor)
+    next_q_values = None
 
-    if transition.is_terminal:
-        next_q_values = None
-    else:
+    if not transition.is_terminal:
         next_state_tensor = board_to_tensor(transition.next_state, transition.player, device)
         with torch.no_grad():
             next_q_values = target_model(next_state_tensor)
@@ -151,7 +150,7 @@ def train_self_play(num_games):
 
         print_game_result(winner)
 
-        for transition in transitions:
+        for transition in reversed(transitions):
             loss = train_on_transition(model, target_model, optimizer, loss_fn, transition, winner, device, GAMMA)
             cumulative_loss += loss
             num_updates += 1
@@ -173,4 +172,4 @@ def train_self_play(num_games):
 
 
 if __name__ == '__main__':
-    train_self_play(num_games=5_000)
+    train_self_play(num_games=10_000)

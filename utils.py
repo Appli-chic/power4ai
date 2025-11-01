@@ -1,4 +1,5 @@
 import torch
+import random
 from game import is_valid_move
 
 
@@ -37,3 +38,14 @@ def model_select_action(model, board, player_piece):
             q_values[col] = -float('inf')
 
     return int(q_values.argmax())
+
+
+def epsilon_greedy_action(model, board, player_piece, epsilon):
+    valid_moves = get_valid_moves(board)
+    if not valid_moves:
+        return None
+
+    if random.random() < epsilon:
+        return random.choice(valid_moves)
+
+    return model_select_action(model, board, player_piece)

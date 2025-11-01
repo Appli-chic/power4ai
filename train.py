@@ -2,10 +2,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import copy
+import random
 from dataclasses import dataclass
 from game import ConnectFourGame
 from model import ConnectFourNet
-from utils import board_to_tensor, model_select_action
+from utils import board_to_tensor, epsilon_greedy_action
 
 
 @dataclass
@@ -16,10 +17,13 @@ class Move:
 
 
 def train_self_play(num_games):
-    model = ConnectFourNet()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model = ConnectFourNet().to(device)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     loss_fn = nn.MSELoss()
 
+    exploration_rate = 0.5
     wins_x = 0
     wins_o = 0
     draws = 0
@@ -28,16 +32,14 @@ def train_self_play(num_games):
         print(f"Game {game_num + 1}/{num_games}")
 
         game = ConnectFourGame()
+        game.current_player = random.choice(['X', 'O'])
         moves = []
 
         while not game.is_game_over:
             board_copy = copy.deepcopy(game.board)
             player = game.current_player
 
-            # To improve learning, add randomness (epsilon-greedy), epsilon_greedy_action in utils.py:
-            # - Sometimes pick random moves to explore new strategies
-            # - Gradually reduce randomness as the model improve
-            action = model_select_action(model, board_copy, player)
+            action = epsilon_greedy_action(model, board_copy, player, exploration_rate, device)
 
             moves.append(
                 Move(
@@ -69,7 +71,7 @@ def train_self_play(num_games):
             print(f"\nPlayer {winner} WINS!")
 
         for move in moves:
-            board_tensor = board_to_tensor(move.board, move.player)
+            board_tensor = board_to_tensor(move.board, move.player, device)
 
             model_prediction = model(board_tensor)
             corrected_model_prediction = model_prediction.clone().detach()
@@ -89,9 +91,11 @@ def train_self_play(num_games):
 
         print(f"X wins: {wins_x} | O wins: {wins_o} | Draws: {draws}")
 
+        exploration_rate = max(0.1, exploration_rate * 0.995)
+
     torch.save(model.state_dict(), 'trained_model.pth')
     print("\nModel saved!")
 
 
 if __name__ == '__main__':
-    train_self_play(num_games=10_000)
+    train_self_play(num_games=100_000)

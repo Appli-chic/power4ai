@@ -1,10 +1,13 @@
+import torch
+
 from model import ConnectFourNet
 from utils import model_select_action
 from game import ConnectFourGame, get_player_move
 
 
 def play_vs_model():
-    model = ConnectFourNet()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = ConnectFourNet().to(device)
     game = ConnectFourGame()
 
     print("\n=== CONNECT 4: HUMAN vs MODEL ===")
@@ -22,7 +25,7 @@ def play_vs_model():
                 continue
         else:
             print("Model is thinking...")
-            column = model_select_action(model, game.board, game.current_player)
+            column = model_select_action(model, game.board, game.current_player, device)
             if column is None:
                 print("No valid moves available!")
                 break
@@ -42,7 +45,8 @@ def play_vs_model():
 
 
 def train_self_play():
-    model = ConnectFourNet()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = ConnectFourNet().to(device)
     game = ConnectFourGame()
 
     print("\n=== SELF-PLAY TRAINING ===")
@@ -53,7 +57,7 @@ def train_self_play():
 
     while not game.is_game_over:
         print(f"{game.current_player} is thinking...")
-        column = model_select_action(model, game.board, game.current_player)
+        column = model_select_action(model, game.board, game.current_player, device)
 
         if column is None:
             print("No valid moves available!")

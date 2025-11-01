@@ -1,4 +1,5 @@
 import torch
+import os
 
 from model import ConnectFourNet
 from utils import model_select_action
@@ -8,6 +9,17 @@ from game import ConnectFourGame, get_player_move
 def play_vs_model():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = ConnectFourNet().to(device)
+
+    model_path = 'trained_model.pth'
+    if not os.path.exists(model_path):
+        print(f"Error: Trained model file '{model_path}' not found!")
+        print("Please run train.py first to create a trained model.")
+        return
+
+    model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
+    model.eval()
+    print(f"Loaded trained model from {model_path}")
+
     game = ConnectFourGame()
 
     print("\n=== CONNECT 4: HUMAN vs MODEL ===")

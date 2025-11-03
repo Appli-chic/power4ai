@@ -175,4 +175,4 @@ def train_self_play(num_games):
 
 
 if __name__ == '__main__':
-    train_self_play(num_games=1000000)
+    train_self_play(num_games=5000000)

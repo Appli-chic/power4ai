@@ -9,20 +9,20 @@ from model import ConnectFourNet
 from utils import board_to_tensor, epsilon_greedy_action
 
 
-GAMMA = 0.99
+GAMMA = 0.70
 LEARNING_RATE = 0.0001
 GRADIENT_CLIP_NORM = 1.0
 
-INITIAL_EXPLORATION_RATE = 0.5
-MIN_EXPLORATION_RATE = 0.1
-EXPLORATION_DECAY = 0.995
+INITIAL_EXPLORATION_RATE = 1
+MIN_EXPLORATION_RATE = 0.05
+EXPLORATION_DECAY = 0.999995
 
 SUMMARY_INTERVAL = 100
 TARGET_NETWORK_UPDATE_INTERVAL = 100
 
 REWARD_WIN = 1.0
 REWARD_LOSS = -1.0
-REWARD_DRAW = 0.0
+REWARD_DRAW = 0.5
 REWARD_INTERMEDIATE = 0.0
 
 
@@ -35,7 +35,7 @@ class Transition:
     is_terminal: bool
 
 
-def calculate_target_q_value(transition, winner, next_q_values, gamma):
+def calculate_target_q_value(transition, winner, next_q_value, gamma):
     if transition.is_terminal:
         if winner == 'Draw':
             return REWARD_DRAW
@@ -44,21 +44,20 @@ def calculate_target_q_value(transition, winner, next_q_values, gamma):
         else:
             return REWARD_LOSS
     else:
-        max_next_q = next_q_values.max().item()
-        return REWARD_INTERMEDIATE + gamma * max_next_q
+        return REWARD_INTERMEDIATE + gamma * next_q_value 
 
 
-def train_on_transition(model, target_model, optimizer, loss_fn, transition, winner, device, gamma):
+def train_on_transition(model, target_model, optimizer, loss_fn, transition, winner, device, gamma, next_q_value):
     state_tensor = board_to_tensor(transition.state, transition.player, device)
     current_q_values = model(state_tensor)
-    next_q_values = None
+    # next_q_values = None
 
-    if not transition.is_terminal:
-        next_state_tensor = board_to_tensor(transition.next_state, transition.player, device)
-        with torch.no_grad():
-            next_q_values = target_model(next_state_tensor)
+    # if not transition.is_terminal:
+    #     next_state_tensor = board_to_tensor(transition.next_state, transition.player, device)
+    #     with torch.no_grad():
+    #         next_q_values = target_model(next_state_tensor)
 
-    target_q_value = calculate_target_q_value(transition, winner, next_q_values, gamma)
+    target_q_value = calculate_target_q_value(transition, winner, next_q_value, gamma)
 
     target_q_values = current_q_values.clone().detach()
     target_q_values[transition.action] = target_q_value
@@ -70,7 +69,7 @@ def train_on_transition(model, target_model, optimizer, loss_fn, transition, win
     torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=GRADIENT_CLIP_NORM)
     optimizer.step()
 
-    return loss.item()
+    return [loss.item(), target_q_value]
 
 
 def play_game(model, device, exploration_rate):
@@ -150,8 +149,12 @@ def train_self_play(num_games):
 
         print_game_result(winner)
 
+        current_q_value = REWARD_DRAW
         for transition in reversed(transitions):
-            loss = train_on_transition(model, target_model, optimizer, loss_fn, transition, winner, device, GAMMA)
+            train_results = train_on_transition(model, target_model, optimizer, loss_fn, transition, winner, device, GAMMA, current_q_value)
+            transition_q_value = train_results[1]
+            loss = train_results[0]
+            current_q_value = -transition_q_value if transition.player == winner else -current_q_value
             cumulative_loss += loss
             num_updates += 1
 
@@ -172,4 +175,4 @@ def train_self_play(num_games):
 
 
 if __name__ == '__main__':
-    train_self_play(num_games=10_000)
+    train_self_play(num_games=5000000)
